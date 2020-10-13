@@ -1,4 +1,4 @@
-/* sprint2r.c
+/* sprint3r.c
 * Auteurs : Gregory TACQUET, Mathis SERGENT
 * Date de création : 26/09/2020
 */
@@ -14,14 +14,10 @@
 #define MSG_INTERRUPTION "## fin de programme\n" 
 #define MSG_EMBAUCHE "## nouveau travailleur \"%s\" competent pour la specialite \"%s\"\n"
 #define MSG_DEMARCHE "## nouveau client \"%s\"\n"
-#define MSG_COMMANDE "## nouvelle commande \"%s\", par client \"%s\"\n"
-#define MSG_TACHE "## la commande \"%s\" requiere la specialite \"%s\" (nombre d'heures \"%d\")\n"
-#define MSG_PROGRESSION "## pour la commande \"%s\", pour la specialite \"%s\" : \"%d\" heures de plus ont ete realisees\n"
-#define MSG_PASSE "## une reallocation est requise\n"
 #define MSG_SPECIALITES "specialites traitees : "
 #define MSG_TRAVAILLEURS "la specialite %s peut etre prise en charge par : "
 #define MSG_CLIENTS "\nle client %s a commande : "
-#define MSG_SUPERVISION "## consultation de l'avancement des commandes\n"
+#define MSG_SUPERVISION "\netat des taches pour %s : "
 #define MSG_CHARGE "## consultation de la charge de travail de \"%s\"\n"
 
 // Lexemes -------------------------------------------------------------------- 
@@ -100,7 +96,7 @@ int get_int() {
 // Instructions --------------------------------------------------------------- 
 
 // developpe ---------------------------
-/*
+/* 
 * Créer une nouvelle spécialité
 * ptr_specialites [out] le pointeur du tableau des spécialités créées
 */
@@ -118,10 +114,10 @@ void traite_developpe(Specialites* ptr_specialites) {
 }
 
 // embauche ----------------------------
-/*
-* Créer un nouveau travailleur
+/* 
+* Créer un nouveau travailleur 
 * ptr_specilites [in] le pointeur du tableau des spécialités créées
-* ptr_travailleurs [out]
+* ptr_travailleurs [out] 
 */
 
 void traite_embauche(Specialites* ptr_specialites, Travailleurs* ptr_travailleurs) {
@@ -146,7 +142,7 @@ void traite_embauche(Specialites* ptr_specialites, Travailleurs* ptr_travailleur
 }
 
 // demarche ----------------------------
-/*
+/* 
 * Créer un nouveau client.
 * ptr_client [out] le pointeur du tableau des clients créés
 */
@@ -160,64 +156,90 @@ void traite_demarche(Clients* ptr_clients) {
 }
 
 // commande ----------------------------
-/*
-* Créer une nouvelle commande qui possède un nom différent à chaque fois et avec un client qui doit avoir été déclarer avant
+/* 
+* Créer une nouvelle commande.
 */
 
-void traite_commande(Commandes* ptr_commandes, const Clients*ptr_clients) {
+void traite_commande(Commandes* ptr_commandes, Clients* ptr_clients) {
 	Mot nom_commande, nom_client;
+	Commande commande;
+	int i;
 	get_id(nom_commande);
 	get_id(nom_client);
-	Commande commande;
-	strcpy(commande.nom,nom_commande);
-	for (int i = 0; i < ptr_clients->nb_clients; i++) {
-		if (strcmp((ptr_clients->tab_clients[i]), nom_client)==0) {
-			ptr_commandes->tab_commandes[ptr_commandes->nb_commandes] = commande;
-			++(ptr_commandes->nb_commandes);
+
+	strcpy(commande.nom, nom_commande);
+
+	for (i = 0; i < ptr_clients->nb_clients; ++i) {
+		if (strcmp(ptr_clients->tab_clients[i], nom_client) == 0) {
+			commande.id_client = i;
+			break;
 		}
 	}
+
+	for (i = 0; i < MAX_SPECIALITES; ++i) {
+		commande.tache_par_specialite[i].nb_heures_requises = 0;
+		commande.tache_par_specialite[i].nb_heures_effectuees = 0;
+	}
+
+	ptr_commandes->tab_commandes[ptr_commandes->nb_commandes] = commande;
+	++(ptr_commandes->nb_commandes);
 }
 
 // tache -------------------------------
 /* Créer une nouvelle tâche.
-*
+* 
 */
 
-void traite_tache(Commandes*ptr_commandes, Specialites*ptr_specialites) {
+void traite_tache(Specialites* ptr_specialites, Commandes* ptr_commandes) {
 	Mot nom_commande, nom_specialite;
 	Tache tache;
 	get_id(nom_commande);
 	get_id(nom_specialite);
-	int nb_heures = get_int();
-	for (int i = 0;i<ptr_commandes->nb_commandes;++i) {
-		if (strcmp(ptr_commandes->tab_commandes[i]) == nom_commande) {
-			if (strcmp(ptr_specialites->tab_specialites[i]) == nom_specialite) {
-				tache.nb_heures_requises = nb_heures;
-			}
+	tache.nb_heures_requises = get_int();
+	tache.nb_heures_effectuees = 0;
+	int indice_specialite, indice_commande;
+	
+	for (indice_specialite = 0; indice_specialite < ptr_specialites->nb_specialites; ++indice_specialite) {
+		if (strcmp(ptr_specialites->tab_specialites[indice_specialite].nom, nom_specialite) == 0) {
+			break;
 		}
 	}
-	//printf(MSG_TACHE, nom_commande, nom_specialite, nb_heures);
+
+	for (indice_commande = 0; indice_commande < ptr_commandes->nb_commandes; ++indice_commande) {
+		if (strcmp(ptr_commandes->tab_commandes[indice_commande].nom, nom_commande) == 0) {
+			break;
+		}
+	}
+
+	ptr_commandes->tab_commandes[indice_commande].tache_par_specialite[indice_specialite] = tache;
 }
 
 // progression -------------------------
 /* Déclare l'avancement d'une tâche.
-*
+* 
 */
 
-void traite_progression(Commandes*ptr_commandes, Specialites*ptr_specialites) {
+void traite_progression(Specialites* ptr_specialites, Commandes* ptr_commandes) {
+
 	Mot nom_commande, nom_specialite, passe_fonction;
-	Tache tache;
+
 	get_id(nom_commande);
 	get_id(nom_specialite);
-	int nb_heures_sup = get_int();
-	for (int i = 0;;++i) {
-		if (strcmp(ptr_commandes->tab_commandes[i]) == nom_commande) {
-			if (strcmp(ptr_specialites->tab_specialites[i]]) == nom_specialite) {
-				tache.nb_heures_effectuees = nb_heures_sup;
-			}
+	int indice_specialite, indice_commande;
+
+	for (indice_specialite = 0; indice_specialite < ptr_specialites->nb_specialites; ++indice_specialite) {
+		if (strcmp(ptr_specialites->tab_specialites[indice_specialite].nom, nom_specialite) == 0) {
+			break;
 		}
 	}
-	//printf(MSG_PROGRESSION, nom_commande, nom_specialite, nb_heures_sup);
+
+	for (indice_commande = 0; indice_commande < ptr_commandes->nb_commandes; ++indice_commande) {
+		if (strcmp(ptr_commandes->tab_commandes[indice_commande].nom, nom_commande) == 0) {
+			break;
+		}
+	}
+
+	ptr_commandes->tab_commandes[indice_commande].tache_par_specialite[indice_specialite].nb_heures_effectuees += get_int();
 }
 
 // passe -------------------------------
@@ -226,7 +248,7 @@ void traite_progression(Commandes*ptr_commandes, Specialites*ptr_specialites) {
 */
 
 void traite_passe() {
-	
+	//...
 }
 
 // specialites -------------------------
@@ -247,7 +269,7 @@ void traite_specialites(Specialites* ptr_specialites) {
 
 void affiche_travailleurs(Specialites* ptr_specialites, Travailleurs* ptr_travailleurs, Mot nom_specialite, int i) {
 	int j = 0;
-	int before = FAUX;
+	Booleen virgule = FAUX;
 
 	printf(MSG_TRAVAILLEURS, nom_specialite);
 	for (i = 0; i < ptr_specialites->nb_specialites; ++i) {
@@ -258,11 +280,11 @@ void affiche_travailleurs(Specialites* ptr_specialites, Travailleurs* ptr_travai
 
 	for (j = (ptr_travailleurs->nb_travailleurs) - 1; j >= 0; --j) {
 		if ((ptr_travailleurs->tab_travailleurs[j]).tags_competences[i] == VRAI) {
-			if (before == VRAI) {
+			if (virgule == VRAI) {
 				printf(", ");
 			}
 			printf("%s", (ptr_travailleurs->tab_travailleurs[j]).nom);
-			before = VRAI;
+			virgule = VRAI;
 		}
 	}
 
@@ -277,25 +299,15 @@ Nécessite l'entrée par l'utilisateur du mot-clé "tous" ou du nom de la spéci
 void traite_travailleurs(Specialites* ptr_specialites, Travailleurs* ptr_travailleurs) {
 	Mot nom_specialite;
 	get_id(nom_specialite);
-	int i = 0;
-	int j = 0;
-	int before;
 
 	if (strcmp(nom_specialite, "tous") == 0) {
-
-		for (i = 0; i < ptr_specialites->nb_specialites; ++i) {
-
+		for (int i = 0; i < ptr_specialites->nb_specialites; ++i) {
 			strcpy(nom_specialite, ptr_specialites->tab_specialites[i].nom);
-
 			affiche_travailleurs(ptr_specialites, ptr_travailleurs, nom_specialite, i);
-
 		}
-
 	}
 	else {
-
 		affiche_travailleurs(ptr_specialites, ptr_travailleurs, nom_specialite, i);
-
 	}
 }
 
@@ -303,32 +315,63 @@ void traite_travailleurs(Specialites* ptr_specialites, Travailleurs* ptr_travail
 /* La fonction traite_clients() affiche l'entête de consultation des commandes effectuées par un certain client.
 Nécessite l'entrée par l'utilisateur du nom du client. */
 
-void traite_client(Clients* ptr_clients) {
+void afficher_commandes(Commandes* ptr_commandes, int indice_client) {
+	Booleen virgule = FAUX;
+	for (int i = 0; i < ptr_commandes->nb_commandes; ++i) {
+		if (ptr_commandes->tab_commandes[i].id_client == indice_client) {
+			if (virgule == VRAI) {
+				printf(", ");
+			}
+			printf("%s", ptr_commandes->tab_commandes[i].nom);
+			virgule = VRAI;
+		}
+	}
+}
+
+void traite_client(Clients* ptr_clients, Commandes* ptr_commandes) {
 	Mot nom_client;
 	get_id(nom_client);
-	int i = 0;
-
+	int indice_client = 0;
+	
 	if (strcmp(nom_client, "tous") == 0) {
-		for (i = 0; i < ptr_clients->nb_clients; ++i) {
-			printf(MSG_CLIENTS, (ptr_clients->tab_clients[i]));
+		for (indice_client = 0; indice_client < ptr_clients->nb_clients; ++indice_client) {
+			printf(MSG_CLIENTS, (ptr_clients->tab_clients[indice_client])); //seulement si on a au moins 1 commande faite par le client
+
+			afficher_commandes(ptr_commandes, indice_client);
 		}
 	}
 	else {
-		for (i = 0; i < ptr_clients->nb_clients; ++i) {
-			if (strcmp((ptr_clients->tab_clients[i]), nom_client) == 0) {
+		for (indice_client = 0; indice_client < ptr_clients->nb_clients; ++indice_client) {
+			if (strcmp((ptr_clients->tab_clients[indice_client]), nom_client) == 0) {
 				break;
 			}
 		}
 
-		printf(MSG_CLIENTS, (ptr_clients->tab_clients[i]));
+		printf(MSG_CLIENTS, (ptr_clients->tab_clients[indice_client]));
+		
+		afficher_commandes(ptr_commandes, indice_client);
+
 	}
 	printf("\n");
 }
 
 // supervision -------------------------
 /* La fonction traite_supervision() affiche l'entête de consultation de l'avancement des commandes.*/
-void traite_supervision() {
-	printf(MSG_SUPERVISION);
+void traite_supervision(Specialites* ptr_specialites, Commandes* ptr_commandes) {
+	for (int i = 0; i < ptr_commandes->nb_commandes; ++i) {
+		Booleen virgule = FAUX;
+		printf(MSG_SUPERVISION, ptr_commandes->tab_commandes[i].nom);
+		for (int j = 0; j < ptr_specialites->nb_specialites; ++j) {
+			if (ptr_commandes->tab_commandes[i].tache_par_specialite[j].nb_heures_requises != 0) {
+				if (virgule == VRAI) {
+					printf(", ");
+				}
+				printf("%s:%d/%d", ptr_specialites->tab_specialites[j].nom, ptr_commandes->tab_commandes[i].tache_par_specialite[j].nb_heures_effectuees, ptr_commandes->tab_commandes[i].tache_par_specialite[j].nb_heures_requises);
+				virgule = VRAI;
+			}
+		}
+	}
+	printf("\n");
 }
 
 // charge ------------------------------
@@ -363,7 +406,7 @@ int main(int argc, char* argv[]) {
 	clients.nb_clients = 0;
 	Commandes commandes;
 	commandes.nb_commandes = 0;
-
+	
 	while (VRAI) {
 		get_id(buffer);
 		if (strcmp(buffer, "developpe") == 0) {
@@ -383,11 +426,11 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 		if (strcmp(buffer, "tache") == 0) {
-			traite_tache(&commandes,&specialites);
+			traite_tache(&specialites, &commandes);
 			continue;
 		}
 		if (strcmp(buffer, "progression") == 0) {
-			traite_progression(&commandes, &specialites);
+			traite_progression(&specialites, &commandes);
 			continue;
 		}
 		if (strcmp(buffer, "passe") == 0) {
@@ -403,11 +446,11 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 		if (strcmp(buffer, "client") == 0) {
-			traite_client(&clients);
+			traite_client(&clients, &commandes);
 			continue;
 		}
 		if (strcmp(buffer, "supervision") == 0) {
-			traite_supervision();
+			traite_supervision(&specialites, &commandes);
 			continue;
 		}
 		if (strcmp(buffer, "charge") == 0) {
